@@ -9,6 +9,14 @@ import Drawer from "@/components/Drawer.vue";
 
 const items = ref([])
 
+const drawerOpen = ref(false)
+const closeDrawer = () => {
+  drawerOpen.value = false
+}
+const openDrawer = () => {
+  drawerOpen.value = true
+}
+
 const filters = reactive({
   sortBy: 'title',
   searchQuery: '',
@@ -44,10 +52,26 @@ const fetchFavorites = async () => {
 }
 
 const addToFavorite = async (item) => {
-  item.isFavorite = !item.isFavorite
+  try {
+    if (!item.isFavorite) {
+      const obj = {
+        parentId: item.id
+      }
+
+      item.isFavorite = true
+      const { data } = await axios.post('https://55062b80b076a7f3.mokky.dev/favorites', obj)
+      item.favoriteId = data.id
+    } else {
+      item.isFavorite = false
+      await axios.delete(`https://55062b80b076a7f3.mokky.dev/favorites/${item.favoriteId}`)
+      item.favoriteId = null
+    }
+  } catch (err) {
+    console.log(err);
+  }
 }
 
-const fetchItems = async () => {
+const fetchItems = async (item) => {
   try {
     const params = {
       sortBy: filters.sortBy,
@@ -65,6 +89,7 @@ const fetchItems = async () => {
     items.value = data.map(obj => ({
       ...obj,
       isFavorites: false,
+      favoriteId: null,
       isAdded: false
     }))
   } catch (err) {
@@ -78,14 +103,18 @@ onMounted(async () => {
 })
 watch(filters, fetchItems)
 
-provide('addToFavorite', addToFavorite)
+provide('cartActions', {
+  closeDrawer,
+  openDrawer
+})
 </script>
 
 <template>
-  <!--  <Drawer />-->
+    <Drawer v-if="drawerOpen" />
+
   <div class="bg-white rounded-xl shadow-xl mt-14 w-4/5 m-auto">
 
-    <Header/>
+    <Header @open-drawer="openDrawer" />
 
     <div class="p-10">
       <div class="flex justify-between items-center">
@@ -111,7 +140,7 @@ provide('addToFavorite', addToFavorite)
       </div>
 
       <div class="mt-10">
-        <CardList :items="items" @addToFavorite="addToFavorite" />
+        <CardList :items="items" @add-to-favorite="addToFavorite" />
       </div>
 
     </div>
